@@ -1,0 +1,59 @@
+version: 1
+
+envoyproxy_operator:
+  check_interval: 60
+aws:
+  region: ap-northeast-1
+  credentials:
+    aws_access_key_id: ""
+    aws_secret_access_key: ""
+  target:
+    resources:
+      - type: target_group
+        conditions:
+        - VpcId: vpc-21342342141234
+          TargetGroupName: 
+            regex: mattermost-staging-.*
+
+docker:
+  container_name: envoy-proxy
+
+envoyproxy:
+  output_file: test-envoy.yaml
+  base_cluster_config:
+    clusters:
+      - name: local_service
+        connect_timeout: 0.25s
+        type: strict_dns
+        lb_policy: round_robin
+        load_assignment:
+          cluster_name: local_service
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: host.docker.internal
+                        port_value: 8065
+      - name: jaeger-collector
+        connect_timeout: 1s
+        type: strict_dns
+        lb_policy: round_robin
+        load_assignment:
+          cluster_name: jaeger-collector
+          endpoints:
+            - lb_endpoints: []
+      - name: mattermost-push-proxy
+        connect_timeout: 0.250s
+        type: strict_dns
+        lb_policy: round_robin
+        http2_protocol_options: {}
+        load_assignment:
+          cluster_name: mattermost-push-proxy
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: mattermost-push-proxy-svc
+                        port_value: 8066
